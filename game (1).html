@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Game</title>
+
+    <style>
+        .container {
+            align-items: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            height: 80vh;
+        }
+
+        .start {
+            background: lightgray;
+            border: none;
+            padding: 1vw;
+            width: 10vw;
+            visibility: hidden;
+        }
+
+        .start:active {
+            background: darkgray;
+        }
+
+        .grid {
+            border: 1px solid darkgray;
+            display: flex;
+            flex-wrap: wrap;
+            width: 30vw;
+        }
+
+        .cell {
+            height: 3vw;
+            outline: 1px solid lightgray;
+            width: 3vw;
+        }
+
+        .cell[data-live="1"]::before {
+            display: block;
+            font-size: 2.9vw;
+            line-height: 3vw;
+            height: 3vw;
+            width: 3vw;
+        }
+
+        .cell[data-live="1"]:not(:hover)::before {
+            color: mediumslateblue;
+            content: '\1F603'; /* смайлик веселый */
+        }
+
+        .cell[data-live="1"]:hover::before {
+            color: red;
+            content: '\1F613'; /* смайлик грустный */
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <button class="start">Новая игра</button>
+    <div class="grid"></div>
+</div>
+
+<script>
+    const grid = document.querySelector('.grid');
+    const fieldCount = 100;
+    const gridSize = fieldCount / 10;
+    const startButton = document.querySelector('.start');
+
+    startButton.addEventListener('click', () => {
+        window.location.reload();
+    });
+
+    for (let i = 0; i < fieldCount; i++) {
+        const cell = document.createElement('div');
+
+        cell.classList.add('cell');
+        cell.dataset.column = `${i % gridSize}`;
+        cell.dataset.row = `${Math.floor(i / gridSize)}`;
+
+        cell.addEventListener('mouseover', () => {
+            cell.timer = setTimeout(() => {
+                cell.dataset.live = '0';
+                clearTimeout(cell.timer);
+            }, 500); // время перед убийством черех мышу
+        });
+
+        cell.addEventListener('mouseout', () => {
+            clearTimeout(cell.timer);
+        });
+
+        grid.appendChild(cell);
+    }
+
+    function findCell(columnIndex, rowIndex) {
+        return document.querySelector(`.grid .cell[data-column="${columnIndex}"][data-row="${rowIndex}"]`);
+    }
+
+    function isCellLive(columnIndex, rowIndex) {
+        const cell = findCell(columnIndex, rowIndex);
+
+        if (cell == null) {
+            return false;
+        }
+
+        return !!+cell.dataset.live;
+    }
+
+    // стартовая настройка
+    for (let rowIndex = 0; rowIndex < gridSize; rowIndex++) {
+        for (let columnIndex = 0; columnIndex < gridSize; columnIndex++) {
+            const cell = findCell(columnIndex, rowIndex);
+            const live = Math.round(Math.random());
+
+            cell.dataset.live = `${live}`;
+        }
+    }
+
+    const interval = setInterval(() => {
+        document
+            .querySelectorAll('.grid .cell')
+            .forEach((cell) => {
+                let liveNeighborsCount = 0;
+
+                const { column, live, row } = Object
+                    .entries(cell.dataset)
+                    .reduce((dataset, [key, value]) => ({ ...dataset, [key]: +value }), {});
+
+                // соседи сверху
+                liveNeighborsCount += isCellLive(column - 1, row - 1);
+                liveNeighborsCount += isCellLive(column, row - 1);
+                liveNeighborsCount += isCellLive(column + 1, row - 1);
+
+                // соседи на этаже
+                liveNeighborsCount += isCellLive(column - 1, row);
+                liveNeighborsCount += isCellLive(column + 1, row);
+
+                // соседи снизу
+                liveNeighborsCount += isCellLive(column - 1, row + 1);
+                liveNeighborsCount += isCellLive(column, row + 1);
+                liveNeighborsCount += isCellLive(column + 1, row + 1);
+
+                // трупик, но можно оживить
+                if (live === 0 && liveNeighborsCount === 3) {
+                    cell.dataset.live = '1';
+                // живой, но поскольку у него не 2 или 3 живых рядом придеться его убить, даже если у него 4+ соседа живых он умрет (они его запинают)
+                } else if (live === 1 && ![2, 3].includes(liveNeighborsCount)) {
+                    cell.dataset.live = '0';
+                }
+            });
+
+        if (document.querySelectorAll('.grid .cell[data-live="1"]').length === 0) {
+            alert('Вы всех убили');
+            clearInterval(interval);
+            startButton.setAttribute('style', 'visibility: visible')
+        }
+    }, 5000);
+</script>
+</body>
+</html>
